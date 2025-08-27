@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.touchStartY = 0;
             this.touchEndX = 0;
             this.touchEndY = 0;
+            this.minSwipeDistance = 30;
 
             this.setupEventListeners();
         }
@@ -51,27 +52,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             
-            // Eventos de touch corrigidos
-            this.gameContainer.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true });
-            this.gameContainer.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: true });
-            this.gameContainer.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true });
+            // Adicionar event listeners para touch
+            this.gameContainer.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+            this.gameContainer.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+            this.gameContainer.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
         }
         
         // Métodos para manipulação de touch
         handleTouchStart(event) {
             this.touchStartX = event.touches[0].clientX;
             this.touchStartY = event.touches[0].clientY;
+            event.preventDefault();
         }
         
         handleTouchMove(event) {
-            this.touchEndX = event.touches[0].clientX;
-            this.touchEndY = event.touches[0].clientY;
+            // Permite rolagem da página se o movimento for principalmente vertical
+            if (Math.abs(event.touches[0].clientY - this.touchStartY) > 50) {
+                return;
+            }
+            event.preventDefault();
         }
         
         handleTouchEnd(event) {
             this.touchEndX = event.changedTouches[0].clientX;
             this.touchEndY = event.changedTouches[0].clientY;
             this.handleSwipe();
+            event.preventDefault();
         }
         
         handleSwipe() {
@@ -80,12 +86,20 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Determina a direção baseada no maior movimento
             if (Math.abs(dx) > Math.abs(dy)) {
-                if (Math.abs(dx) > 30) { 
-                    this.handleInput({ key: dx > 0 ? 'ArrowRight' : 'ArrowLeft' });
+                if (Math.abs(dx) > this.minSwipeDistance) {
+                    if (dx > 0) {
+                        this.handleInput({ key: 'ArrowRight' });
+                    } else {
+                        this.handleInput({ key: 'ArrowLeft' });
+                    }
                 }
             } else {
-                if (Math.abs(dy) > 30) { 
-                    this.handleInput({ key: dy > 0 ? 'ArrowDown' : 'ArrowUp' });
+                if (Math.abs(dy) > this.minSwipeDistance) {
+                    if (dy > 0) {
+                        this.handleInput({ key: 'ArrowDown' });
+                    } else {
+                        this.handleInput({ key: 'ArrowUp' });
+                    }
                 }
             }
         }
@@ -101,7 +115,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            this.playerDisplay.textContent = `Olá, ${this.playerName}!`;
+            // Formata o nome para mostrar apenas o primeiro nome
+            const firstName = this.playerName.split(' ')[0];
+            this.playerDisplay.textContent = `Olá, ${firstName}!`;
+            
             this.loginScreen.style.display = 'none';
             this.gameScreen.style.display = 'block';
             this.initGame();
@@ -115,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.addNewTile();
             this.addNewTile();
             
+            // Remover mensagem de game over se existir
             const gameOverMessage = document.querySelector('.game-over');
             if (gameOverMessage) {
                 gameOverMessage.remove();
@@ -147,8 +165,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const { x, y } = emptyCells[Math.floor(Math.random() * emptyCells.length)];
             const value = Math.random() < 0.9 ? 2 : 4;
-            const tile = new Tile(value, x, y);
+            const tile = new Tile(value, x, y, this.getTileSize());
             this.grid[y][x] = tile;
+        }
+        
+        getTileSize() {
+            const gridWidth = this.gridBackground.offsetWidth;
+            const cellSize = (gridWidth - 8 * 2 - 8 * 3) / 4; // padding + gaps
+            return cellSize;
         }
 
         updateScore(points) {
@@ -157,6 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async handleInput(e) {
+            // Ignorar se estiver digitando em um input
             if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
                 return;
             }
@@ -181,6 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const moved = this.move(vector);
 
+            // Animação leva 100ms (ver CSS), esperamos um pouco mais
             await new Promise(resolve => setTimeout(resolve, 120));
 
             if (moved) {
@@ -200,6 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const traversals = this.buildTraversals(vector);
             
+            // Primeira passada: mover todos os blocos
             traversals.y.forEach(y => {
                 traversals.x.forEach(x => {
                     const currentTile = this.grid[y][x];
@@ -208,6 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     let furthestPosition = { x, y };
                     let nextPosition = { x: x + vector.x, y: y + vector.y };
                     
+                    // Encontra a posição mais distante que o bloco pode ir
                     while (this.isWithinBounds(nextPosition) && !this.grid[nextPosition.y][nextPosition.x]) {
                         furthestPosition = nextPosition;
                         nextPosition = { x: nextPosition.x + vector.x, y: nextPosition.y + vector.y };
@@ -215,6 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const movedTile = this.grid[y][x];
                     
+                    // Move o bloco se a posição mudou
                     if (furthestPosition.x !== x || furthestPosition.y !== y) {
                         this.grid[furthestPosition.y][furthestPosition.x] = movedTile;
                         this.grid[y][x] = null;
@@ -224,6 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
             
+            // Segunda passada: verificar fusões
             traversals.y.forEach(y => {
                 traversals.x.forEach(x => {
                     const currentTile = this.grid[y][x];
@@ -235,16 +265,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const adjacentTile = this.grid[nextPosition.y][nextPosition.x];
                     
+                    // Verifica se pode fundir com o bloco adjacente
                     if (adjacentTile && adjacentTile.value === currentTile.value && !adjacentTile.mergedThisTurn && !currentTile.mergedThisTurn) {
+                        // Remove ambos os tiles
                         this.grid[y][x] = null;
                         this.grid[nextPosition.y][nextPosition.x] = null;
                         
+                        // Cria novo tile com valor combinado
                         const newValue = currentTile.value * 2;
                         scoreToAdd += newValue;
-                        const newTile = new Tile(newValue, nextPosition.x, nextPosition.y);
+                        const newTile = new Tile(newValue, nextPosition.x, nextPosition.y, this.getTileSize());
                         newTile.mergedThisTurn = true;
                         this.grid[nextPosition.y][nextPosition.x] = newTile;
                         
+                        // Remove os tiles antigos
                         currentTile.destroy();
                         adjacentTile.destroy();
                         
@@ -253,6 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
             
+            // Terceira passada: mover blocos novamente após fusões (para preencher espaços vazios)
             traversals.y.forEach(y => {
                 traversals.x.forEach(x => {
                     const currentTile = this.grid[y][x];
@@ -261,6 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     let furthestPosition = { x, y };
                     let nextPosition = { x: x + vector.x, y: y + vector.y };
                     
+                    // Encontra a posição mais distante que o bloco pode ir
                     while (this.isWithinBounds(nextPosition) && !this.grid[nextPosition.y][nextPosition.x]) {
                         furthestPosition = nextPosition;
                         nextPosition = { x: nextPosition.x + vector.x, y: nextPosition.y + vector.y };
@@ -268,6 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const movedTile = this.grid[y][x];
                     
+                    // Move o bloco se a posição mudou
                     if (furthestPosition.x !== x || furthestPosition.y !== y) {
                         this.grid[furthestPosition.y][furthestPosition.x] = movedTile;
                         this.grid[y][x] = null;
@@ -308,11 +345,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         canMove() {
+            // Verifica se há espaços vazios
             for (let y = 0; y < this.gridSize; y++) {
                 for (let x = 0; x < this.gridSize; x++) {
                     if (!this.grid[y][x]) return true;
                     
                     const currentValue = this.grid[y][x].value;
+                    // Checar vizinhos
                     if (x < this.gridSize - 1) {
                         const right = this.grid[y][x+1];
                         if (right && right.value === currentValue) return true;
@@ -331,19 +370,26 @@ document.addEventListener('DOMContentLoaded', () => {
             gameOverDiv.className = 'game-over';
             gameOverDiv.innerHTML = `
                 <h2>Fim de Jogo!</h2>
-                <p>Pontuação: ${this.score}</p>
-                <button onclick="document.querySelector('.game-over').remove(); game.initGame();">Jogar Novamente</button>
+                <p>Sua pontuação: ${this.score}</p>
+                <button id="restart-button">Jogar Novamente</button>
             `;
             this.gameScreen.querySelector('.game-container').appendChild(gameOverDiv);
+            
+            // Adicionar event listener para o botão de reinício
+            document.getElementById('restart-button').addEventListener('click', () => {
+                gameOverDiv.remove();
+                this.initGame();
+            });
         }
     }
 
     class Tile {
-        constructor(value, x, y) {
+        constructor(value, x, y, size) {
             this.value = value;
             this.x = x;
             this.y = y;
             this.mergedThisTurn = false;
+            this.size = size || 100; // Tamanho padrão para desktop
             
             this.element = this.createElement();
             this.updatePosition(x, y, true);
@@ -354,6 +400,16 @@ document.addEventListener('DOMContentLoaded', () => {
             tileElement.classList.add('tile');
             tileElement.dataset.value = this.value;
             tileElement.textContent = this.value;
+            tileElement.style.width = `${this.size}px`;
+            tileElement.style.height = `${this.size}px`;
+            
+            // Ajustar tamanho da fonte com base no valor
+            if (this.value > 64) {
+                tileElement.style.fontSize = `${this.size * 0.4}px`;
+            } else {
+                tileElement.style.fontSize = `${this.size * 0.5}px`;
+            }
+            
             document.getElementById('grid-tiles').appendChild(tileElement);
             return tileElement;
         }
@@ -361,9 +417,23 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePosition(x, y, isNew = false) {
             this.x = x;
             this.y = y;
-            const positionX = x * (100 + 15) + 15;
-            const positionY = y * (100 + 15) + 15;
+            
+            const gridWidth = document.getElementById('grid-background').offsetWidth;
+            const cellSize = (gridWidth - 8 * 2 - 8 * 3) / 4; // padding + gaps
+            
+            const positionX = x * (cellSize + 8) + 8;
+            const positionY = y * (cellSize + 8) + 8;
+            
             this.element.style.transform = `translate(${positionX}px, ${positionY}px)`;
+            this.element.style.width = `${cellSize}px`;
+            this.element.style.height = `${cellSize}px`;
+            
+            // Ajustar tamanho da fonte com base no valor
+            if (this.value > 64) {
+                this.element.style.fontSize = `${cellSize * 0.4}px`;
+            } else {
+                this.element.style.fontSize = `${cellSize * 0.5}px`;
+            }
             
             this.element.dataset.value = this.value;
             this.element.textContent = this.value;
@@ -380,6 +450,15 @@ document.addEventListener('DOMContentLoaded', () => {
             this.value = newValue;
             this.element.textContent = newValue;
             this.element.dataset.value = newValue;
+            
+            // Ajustar tamanho da fonte com base no novo valor
+            const cellSize = parseInt(this.element.style.width);
+            if (this.value > 64) {
+                this.element.style.fontSize = `${cellSize * 0.4}px`;
+            } else {
+                this.element.style.fontSize = `${cellSize * 0.5}px`;
+            }
+            
             this.element.classList.add('merged');
             this.element.addEventListener('animationend', () => {
                 this.element.classList.remove('merged');
