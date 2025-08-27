@@ -6,13 +6,22 @@
 
 body {
     font-family: 'Arial', sans-serif;
-    background-color: #f4f1de;
+    background-color: #2c3e50;
+
+    background-image: url('ChatGPT Image 22 de ago. de 2025, 19_54_06.png');
+    background-size: cover;   /* cobre toda a tela */
+    background-position: center top; /* foca no centro horizontal e topo */
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+
     color: #5a524c;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
+    align-items: center;
     min-height: 100vh;
-    padding: 15px;
+    margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
     touch-action: manipulation;
 }
 
@@ -365,3 +374,4 @@ button:focus, input:focus {
         padding: 10px;
     }
 }
+
