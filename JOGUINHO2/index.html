@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Senac 2048</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="login-screen" class="container">
+        <h1>Senac 2048</h1>
+        <form id="login-form">
+            <input type="text" id="player-name" placeholder="Nome Completo" required>
+            <input type="email" id="player-email" placeholder="E-mail" required>
+            <input type="tel" id="player-phone" placeholder="Telefone" required>
+            <button type="submit">Jogar</button>
+        </form>
+    </div>
+
+    <div id="game-screen" class="container" style="display:none;">
+        <div class="header">
+            <h1>Senac 2048</h1>
+            <div class="scores-container">
+                <div id="player-display" class="player-info"></div>
+                <div class="score">
+                    <h2>PONTOS</h2>
+                    <span id="score">0</span>
+                </div>
+            </div>
+        </div>
+        <div class="game-container">
+            <div class="swipe-hint">Deslize para mover os blocos</div>
+            <div id="grid-background"></div>
+            <div id="grid-tiles"></div>
+        </div>
+        <button id="new-game-button">Novo Jogo</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
